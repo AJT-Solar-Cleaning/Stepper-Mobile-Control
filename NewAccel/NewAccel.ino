@@ -7,44 +7,30 @@ int start = 0;
 int kept = 1;
 int posL = 0;
 int posR = 0;
+
+int MinPulse = 200;
+int ToPos = 1000;
+int RePos = 200;
 float speed = 500.0;
 float accel = 250.0;
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
+
   stepperL.setMaxSpeed(speed);
   stepperL.setAcceleration(accel);
-  stepperL.setMinPulseWidth(200);
-  stepperL.setPinsInverted(1);
-  stepperL.moveTo(4000);
+  stepperL.setMinPulseWidth(MinPulse);
+  stepperR.setPinsInverted(1);
+  stepperL.moveTo(ToPos);
 
   stepperR.setMaxSpeed(speed);
   stepperR.setAcceleration(accel);
-  stepperR.setMinPulseWidth(200);
-  stepperR.moveTo(4000);
+  stepperR.setMinPulseWidth(MinPulse);
+  stepperR.moveTo(ToPos);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  // start = Serial.parseInt();
-  // Serial.print("start : ");
-  // Serial.println(start);
-
-  // switch (start)
-  // {
-  //   case 1:
-  //     kept = 0;
-  //     break;
-
-  //   case 2:
-  //     kept = 1;
-  //     break;
-  // }
-  
-  // Serial.print("kept : ");
-  // Serial.println(kept);
-
   if (kept == 1 && start != 2)
   {
       if (stepperL.distanceToGo() == 0) 
@@ -65,21 +51,16 @@ void loop() {
       posL = stepperL.currentPosition();
       posR = stepperR.currentPosition();
 
-      // Serial.print(0); // To freeze the lower limit
-      // Serial.print(" ");
-      // Serial.print(1000); // To freeze the upper limit
-      // Serial.print(" ");
-      // Serial.println("Min:0,Max:200000");
-      // Serial.print("StepperL Position: ");
+      Serial.print("StepperL Position: ");
       Serial.println(posL);
-      // Serial.print("StepperR Position: ");
+      Serial.print("StepperR Position: ");
       Serial.println(posR);
-      // Serial.println("----------------------------");
+      Serial.println("----------------------------");
   }
   else 
   {
-      stepperL.moveTo(400);
-      stepperR.moveTo(400);
+      stepperL.moveTo(RePos);
+      stepperR.moveTo(RePos);
 
       stepperL.run();
       stepperR.run();
@@ -87,16 +68,11 @@ void loop() {
       posL = stepperL.currentPosition();
       posR = stepperR.currentPosition();
 
-      // Serial.print(0); // To freeze the lower limit
-      // Serial.print(" ");
-      // Serial.print(5000); // To freeze the upper limit
-      // Serial.print(" ");
-      // Serial.println("Min:0,Max:200000");
-      // Serial.print("StepperL Position: ");
+      Serial.print("StepperL Position: ");
       Serial.println(posL);
-      // Serial.print("StepperR Position: ");
+      Serial.print("StepperR Position: ");
       Serial.println(posR);
-      // Serial.println("----------------------------");
+      Serial.println("----------------------------");
 
   }
 }

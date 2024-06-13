@@ -93,7 +93,7 @@ void setup(){
   stepperR.setMaxSpeed(speed);
   stepperR.setAcceleration(accel);
   stepperR.setMinPulseWidth(MinPulse);
-  stepperR.setPinsInverted(1);
+  stepperL.setPinsInverted(1);
   
   // steppers.addStepper(stepperL);
   // steppers.addStepper(stepperR);
@@ -106,36 +106,28 @@ void loop() {
   
   posL = stepperL.currentPosition();
   posR = stepperR.currentPosition();
-  Serial.print("Pos: ");
-  Serial.println(posL);
+  // Serial.print("Pos: ");
+  // Serial.println(posL);
 
   // Print to Serial Monitor
-  Serial.print("SPD: ");
-  Serial.println(SPD);
-  Serial.print("MTR: ");
-  Serial.println(MTR);
+  // Serial.print("SPD: ");
+  
+  // delay(50);
+  // Serial.print("MTR: ");
+  // Serial.println(MTR);
 
   // delay(10);
-  if (SPD == 0)
+  if (SPD == 0 || abs(SPD) > 600)
   {
     stepperL.setSpeed(0);
     stepperR.setSpeed(0);
     stepperL.stop();
     stepperR.stop();
-
-    Serial.println("Stop State");
   }
-  else if (SPD < 0)
+  else
   {
     stepperL.setSpeed(SPD);
     stepperR.setSpeed(SPD);
-    Serial.println("Reverse State");
-  }
-  else if (SPD > 0)
-  {
-    stepperL.setSpeed(SPD);
-    stepperR.setSpeed(SPD);
-    Serial.println("Forward State");
   }
 
   if (MTR > 40)
@@ -144,9 +136,9 @@ void loop() {
   }
   else if (MTR < -40)
   {
-    digitalWrite(BUTTON_PIN_RLY, HIGH);    
+    digitalWrite(BUTTON_PIN_RLY, HIGH);
   }
-  stepperL.runSpeed();
-  stepperR.runSpeed();
 
+  stepperL.runSpeed();
+  stepperR.runSpeed();   
 }

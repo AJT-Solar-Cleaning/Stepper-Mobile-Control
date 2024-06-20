@@ -17,7 +17,7 @@ AccelStepper stepperL(AccelStepper::DRIVER, 2, 3);
 AccelStepper stepperR(AccelStepper::DRIVER, 4, 5);
 
 // Integers to represent values from sticks and pots
-int SPD;
+int SPD = 0;
 int MTR;
 
 int MaxSPD = 600;
@@ -25,10 +25,9 @@ int MaxSPD = 600;
 int posL = 0;
 int posR = 0;
 
-int MinPulse = 200;
+int MinPulse = 100;
 
-float speed = 2000.0;
-float accel = 300.0;
+float accel = 100.0;
 
 void buttonPinInterrupt_MTR()
 {
@@ -69,7 +68,21 @@ void Pulse()
   {
     newPulseDurationAvailable_SPD = false;
     unsigned long pulseDuration_SPD = pulseInTimeEnd_SPD - pulseInTimeBegin_SPD;
+    int oSPD = SPD;
     SPD = map(pulseDuration_SPD,1000,2000,-MaxSPD,MaxSPD);
+    int Diff = SPD - oSPD;
+    if (abs(Diff) > 500)
+    {
+      Serial.print("Diff: ");
+      Serial.print(Diff);
+      SPD = 0;
+    }
+    if (abs(SPD) < 140)
+    {
+      SPD = 0;
+    }
+    Serial.print("         SPD: ");
+    Serial.println(SPD);
   }
 }
 
@@ -86,11 +99,11 @@ void setup(){
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_MTR), buttonPinInterrupt_MTR, CHANGE);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_SPD), buttonPinInterrupt_SPD, CHANGE);
 
-  stepperL.setMaxSpeed(speed);
+  stepperL.setMaxSpeed(MaxSPD);
   stepperL.setAcceleration(accel);
   stepperL.setMinPulseWidth(MinPulse);
 
-  stepperR.setMaxSpeed(speed);
+  stepperR.setMaxSpeed(MaxSPD);
   stepperR.setAcceleration(accel);
   stepperR.setMinPulseWidth(MinPulse);
   stepperL.setPinsInverted(1);
@@ -111,13 +124,16 @@ void loop() {
 
   // Print to Serial Monitor
   // Serial.print("SPD: ");
+  // Serial.println(SPD);
   
   // delay(50);
   // Serial.print("MTR: ");
   // Serial.println(MTR);
 
   // delay(10);
-  if (SPD == 0 || abs(SPD) > 600)
+
+
+  if (SPD == 0 || abs(SPD) > MaxSPD)
   {
     stepperL.setSpeed(0);
     stepperR.setSpeed(0);

@@ -5,12 +5,14 @@
 #define BUTTON_PIN_SPD 11
 #define BUTTON_PIN_LIN 12
 #define BUTTON_PIN_TUR 13
+#define BUTTON_PIN_SLT 51
 
-#define BUTTON_PIN_RLY 22
 #define DIR1 6
 #define PWM1 7
 #define DIR2 8
 #define PWM2 9
+#define DIRM 52
+#define PWMM 53
 
 volatile unsigned long pulseInTimeBegin_MTR = micros();
 volatile unsigned long pulseInTimeEnd_MTR = micros();
@@ -28,6 +30,10 @@ volatile unsigned long pulseInTimeBegin_TUR = micros();
 volatile unsigned long pulseInTimeEnd_TUR = micros();
 volatile bool newPulseDurationAvailable_TUR = false;
 
+volatile unsigned long pulseInTimeBegin_SLT = micros();
+volatile unsigned long pulseInTimeEnd_SLT = micros();
+volatile bool newPulseDurationAvailable_SLT = false;
+
 AccelStepper stepperL(AccelStepper::DRIVER, 2, 3);
 AccelStepper stepperR(AccelStepper::DRIVER, 4, 5);
 
@@ -36,6 +42,7 @@ int MTR;
 int SPD = 0;
 int LIN;
 int TUR;
+int SLT;
 
 int LIN_L = 0;
 int LIN_R = 0;
@@ -43,7 +50,7 @@ int PosLIN_L = 0;
 int PosLIN_R = 0;
 
 int MaxLIN = 255;
-int MaxSPD = 2000;
+int MaxSPD = 1000;
 
 int posL = 0;
 int posR = 0;
@@ -103,6 +110,20 @@ void buttonPinInterrupt_TUR()
     newPulseDurationAvailable_TUR = true;
   }
 }
+
+void buttonPinInterrupt_SLT()
+{
+  if (digitalRead(BUTTON_PIN_SLT) == HIGH) {
+    // start measuring
+    pulseInTimeBegin_SLT = micros();
+  }
+  else {
+    // stop measuring
+    pulseInTimeEnd_SLT = micros();
+    newPulseDurationAvailable_SLT = true;
+  }
+}
+
 void Pulse()
 {
   if (newPulseDurationAvailable_MTR) 
@@ -110,6 +131,8 @@ void Pulse()
     newPulseDurationAvailable_MTR = false;
     unsigned long pulseDuration_MTR = pulseInTimeEnd_MTR - pulseInTimeBegin_MTR;
     MTR = map(pulseDuration_MTR,1000,2000,-50,50);
+    // Serial.print("                                          MTR: ");
+    // Serial.println(MTR);
   }
 
   if (newPulseDurationAvailable_SPD) 
@@ -119,18 +142,26 @@ void Pulse()
     int oSPD = SPD;
     SPD = map(pulseDuration_SPD,1000,2000,-MaxSPD,MaxSPD);
     int Diff = SPD - oSPD;
-    // if (abs(Diff) > 500)
-    // {
-    //   Serial.print("Diff: ");
-    //   Serial.print(Diff);
-    //   SPD = 0;
-    // }
-    if (abs(SPD) < 200)
+    if (abs(Diff) > 1300)
+    {
+      Serial.print("Diff: ");
+      Serial.print(Diff);
+      if (oSPD > MaxSPD)
+      {
+        oSPD = MaxSPD;
+      }
+      else if (oSPD < -MaxSPD)
+      {
+        oSPD = -MaxSPD;
+      }
+      SPD = oSPD;
+    }
+    if (abs(SPD) < 140)
     {
       SPD = 0;
     }
     Serial.print("         SPD: ");
-    Serial.println(SPD);
+    Serial.print(SPD);
   }
 
   if (newPulseDurationAvailable_LIN) 
@@ -147,18 +178,35 @@ void Pulse()
     int oTUR = TUR;
     TUR = map(pulseDuration_TUR,1000,2000,-MaxSPD,MaxSPD);
     int Diff = TUR - oTUR;
-    if (abs(Diff) > 9000)
+    if (abs(Diff) > 900)
     {
       Serial.print("Diff: ");
       Serial.print(Diff);
-      TUR = 0;
+      if (oTUR > MaxSPD)
+      {
+        oTUR = MaxSPD;
+      }
+      else if (oTUR < -MaxSPD)
+      {
+        oTUR = -MaxSPD;
+      }
+      TUR = oTUR;
     }
     if (abs(TUR) < 140)
     {
       TUR = 0;
     }
-    // Serial.print("         TUR: ");
-    // Serial.println(TUR);
+    Serial.print("             TUR: ");
+    Serial.println(TUR);
+  }
+
+  if (newPulseDurationAvailable_SLT) 
+  {
+    newPulseDurationAvailable_SLT = false;
+    unsigned long pulseDuration_SLT = pulseInTimeEnd_SLT - pulseInTimeBegin_SLT;
+    SLT = map(pulseDuration_SLT,1000,2000,-50,50);
+    // Serial.print("             SLT: ");
+    // Serial.println(SLT);
   }
 }
 
@@ -171,8 +219,10 @@ void setup(){
   pinMode(BUTTON_PIN_SPD, INPUT);
   pinMode(BUTTON_PIN_LIN, INPUT);
   pinMode(BUTTON_PIN_TUR, INPUT);
+  pinMode(BUTTON_PIN_SLT, INPUT);
 
-  pinMode(BUTTON_PIN_RLY, OUTPUT);
+  pinMode(DIRM, OUTPUT);
+  pinMode(PWMM, OUTPUT);
   pinMode(PWM1, OUTPUT);
   pinMode(DIR1, OUTPUT);  
   pinMode(PWM2, OUTPUT);
@@ -182,6 +232,7 @@ void setup(){
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_SPD), buttonPinInterrupt_SPD, CHANGE);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_LIN), buttonPinInterrupt_LIN, CHANGE);
   attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_TUR), buttonPinInterrupt_TUR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_SLT), buttonPinInterrupt_SLT, CHANGE);
 
   stepperL.setMaxSpeed(MaxSPD);
   stepperL.setAcceleration(accel);
@@ -190,7 +241,7 @@ void setup(){
   stepperR.setMaxSpeed(MaxSPD);
   stepperR.setAcceleration(accel);
   stepperR.setMinPulseWidth(MinPulse);
-  stepperL.setPinsInverted(1);
+  stepperR.setPinsInverted(1);
   
   // steppers.addStepper(stepperL);
   // steppers.addStepper(stepperR);
@@ -205,7 +256,7 @@ void loop() {
   LIN_R = analogRead(A7);
 
   PosLIN_L = map(LIN_L, 795, 1005, 200, 0);
-  PosLIN_R = map(LIN_R, 795, 1000, 0, 150);
+  PosLIN_R = map(LIN_R, 195, 1010, 150, 0);
 
   if (PosLIN_L < 0) PosLIN_L = 0;
   if (PosLIN_R < 0) PosLIN_R = 0;
@@ -217,7 +268,7 @@ void loop() {
   // Serial.print("LIN_L: ");
   // Serial.println(PosLIN_L);
   // Serial.print("LIN_R: ");
-  // Serial.println(PosLIN_R);
+  // Serial.println(LIN_R);
 
   // delay(50);
   // Serial.print("MTR: ");
@@ -232,27 +283,27 @@ void loop() {
     stepperR.setSpeed(0);
     stepperL.stop();
     stepperR.stop();
-    // if (TUR == 0 || abs(TUR) > MaxSPD)
-    // {
-    //   stepperL.setSpeed(0);
-    //   stepperR.setSpeed(0);
-    //   stepperL.stop();
-    //   stepperR.stop();
-    // }
-    // else
-    // {
-    //   int newTUR = abs(TUR);
-    //   if (TUR < 0)
-    //   {
-    //     stepperL.setSpeed(newTUR); //-500
-    //     stepperR.setSpeed(-newTUR); //500
-    //   }
-    //   else if (TUR > 0)
-    //   {
-    //     stepperL.setSpeed(-newTUR); //500
-    //     stepperR.setSpeed(newTUR); //-500
-    //   }
-    // }
+    if (TUR == 0 || abs(TUR) > MaxSPD)
+    {
+      stepperL.setSpeed(0);
+      stepperR.setSpeed(0);
+      stepperL.stop();
+      stepperR.stop();
+    }
+    else
+    {
+      int newTUR = abs(TUR);
+      if (TUR < 0)
+      {
+        stepperL.setSpeed(-newTUR); //-500
+        stepperR.setSpeed(newTUR); //500
+      }
+      else if (TUR > 0)
+      {
+        stepperL.setSpeed(newTUR); //500
+        stepperR.setSpeed(-newTUR); //-500
+      }
+    }
   }
   else
   {
@@ -262,11 +313,13 @@ void loop() {
 
   if (MTR > 40)
   {
-    digitalWrite(BUTTON_PIN_RLY, LOW);
+    digitalWrite(DIRM, LOW);
+    analogWrite(PWMM, 255);
   }
   else if (MTR < -40)
   {
-    digitalWrite(BUTTON_PIN_RLY, HIGH);
+    digitalWrite(DIRM, LOW);
+    analogWrite(PWMM, 0);
   }
 
   // if ((LIN <= 30 && LIN >= -30) || abs(LIN) > MaxLIN)
@@ -287,23 +340,50 @@ void loop() {
   //   analogWrite(PWM1, abs(LIN));
   // }
 
-  if (abs(PosLIN_L - LIN) < 10)
+  if (SLT < 0)
+  {
+    analogWrite(PWM2, 0);
+    if (abs(PosLIN_L - LIN) < 60)
+    {
+      analogWrite(PWM1, 0);
+    }
+    else
+    {
+      if (LIN > PosLIN_L)
+      {
+        digitalWrite(DIR1, LOW);
+      }
+      else if (LIN < PosLIN_L)
+      {
+        digitalWrite(DIR1, HIGH);
+      }
+      analogWrite(PWM1, 100);
+    }
+  }
+  else if (SLT > 0)
   {
     analogWrite(PWM1, 0);
-  }
-  else
-  {
-    if (LIN > PosLIN_L)
+    if (abs(PosLIN_R - LIN) < 60)
     {
-      digitalWrite(DIR1, LOW);
+      analogWrite(PWM2, 0);
     }
-    else if (LIN < PosLIN_L)
+    else
     {
-      digitalWrite(DIR1, HIGH);
+      if (LIN > PosLIN_R)
+      {
+        digitalWrite(DIR2, LOW);
+      }
+      else if (LIN < PosLIN_R)
+      {
+        digitalWrite(DIR2, HIGH);
+      }
+      analogWrite(PWM2, 100);
     }
-    analogWrite(PWM1, 110);
   }
+
 
   stepperL.runSpeed();
   stepperR.runSpeed();   
+
+  // delay(100);
 }
